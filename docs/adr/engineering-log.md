@@ -1,6 +1,6 @@
 # Engineering & Architecture Log
 
-This log tracks the day-by-day evolution of the Spring Boot RAG system, documenting *what* changed in each phase, *what* broke during testing, and *why* every configuration property exists.
+This document records the day-by-day build of the Spring Boot Vector RAG Assistant, explaining **what** was built in each phase, **why** each configuration property exists, and **how** real-world issues were diagnosed.
 
 ---
 
@@ -45,8 +45,16 @@ Verify end-to-end connectivity between Spring Boot (`ChatClient`) and Google Gem
 * **Context:** Modern Gemini models (`gemini-4-hydrogen`) act as reasoning models and default to `HIGH` thinking—generating hidden "thought" tokens before writing the final answer.
 * **Decision:** Set `thinking-level: LOW`.
 * **Why:** Deep multi-step reasoning adds seconds of latency and consumes extra output tokens on every call. For straightforward Q&A and grounded RAG, `LOW` delivers fast responses while preserving accuracy.
-* 
+
 #### ADR-03: Deferring Embedding Dependencies to Day 2 (Clean Vertical Slices)
 * **Context:** Including the embedding starter in `pom.xml` during Day 1 triggers Spring Boot's auto-configuration on startup, forcing premature embedding properties in `application.yml` (otherwise startup fails expecting Vertex AI credentials).
 * **Decision:** Removed embedding dependencies and YAML blocks from Day 1.
 * **Why:** Keeps Day 1 strictly focused on `ChatClient` with zero unused beans, making Git commits atomic and easy to follow step-by-step. Embeddings will be introduced in Day 2 alongside PGVector.
+
+#### ADR-04: Solving the "8-Minute Hang" (`GenAiConfig.java` Custom Client Bean)
+* **Symptom:** Requests to `/api/v1/rag/ask` hung for up to **8 minutes** before either returning a response or throwing `503 UNAVAILABLE`, silently burning free-tier quota even with `spring.ai.retry.max-attempts: 1` set.
+* **Diagnosis:** Direct `curl` calls against `gemini-4-hydrogen` immediately returned `503 (high demand)`.
+* **Root Cause:** Two separate retry layers exist:
+  1. **Outer Layer (Spring AI):** Controlled by `spring.ai.retry.max-attempts: 1`.
+  2. **Inner Layer (`google-genai` Java SDK):** `com.google.genai.Client` runs its own internal `RetryInterceptor` defaulting to **5 attempts**, a **120-second timeout per attempt**, and up to **60s backoff** on `429`/`503` errors—explaining the 8-minute spin.
+* **Fix:** Created `GenAiConfig.java` to expose a custom `com.google.genai.Client` bean with `timeout(20_000)` and `attempts(2)`, enforcing true fail-fast behavior.

@@ -14,7 +14,6 @@ spring:
           # Avoids Hydrogen's HIGH default latency/token burn.
           # Overrides Hydrogen's 'high' default for faster RAG answers
           thinking-level: LOW
-
 logging:
   level:
     org.springframework.ai: DEBUG
