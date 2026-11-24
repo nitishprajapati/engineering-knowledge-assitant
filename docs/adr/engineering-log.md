@@ -58,3 +58,8 @@ Verify end-to-end connectivity between Spring Boot (`ChatClient`) and Google Gem
   1. **Outer Layer (Spring AI):** Controlled by `spring.ai.retry.max-attempts: 1`.
   2. **Inner Layer (`google-genai` Java SDK):** `com.google.genai.Client` runs its own internal `RetryInterceptor` defaulting to **5 attempts**, a **120-second timeout per attempt**, and up to **60s backoff** on `429`/`503` errors—explaining the 8-minute spin.
 * **Fix:** Created `GenAiConfig.java` to expose a custom `com.google.genai.Client` bean with `timeout(20_000)` and `attempts(2)`, enforcing true fail-fast behavior.
+
+#### ADR-05: Runtime Model Failover(fallback) & Spring AI 2.0 `ChatOptions.Builder` API
+* **Context:** Free-tier Gemini compute pools (`gemini-4-hydrogen`, `gemini-3.8-flash`) experience independent `503 UNAVAILABLE (high demand)` waves & `429 Too Many Requests`. Static YAML (`application.yml`) can only bind a single model at startup and cannot fail over mid-request.
+* **Decision:** Added a runtime `try/catch` fallback in `RagController` that retries against a secondary Gemini model pool (`gemini-3.5-flash-lite`) via `GoogleGenAiChatOptions` if the primary model throws an exception.
+* **Side Note: Spring AI 2.0 Breaking Change Note:** Unlike Spring AI 1.x (where `.options(...)` accepted a built `ChatOptions` instance via `.build()`), Spring AI 2.0's fluent `ChatClient` expects `ChatOptions.Builder<?>` directly (omitting `.build()`).
