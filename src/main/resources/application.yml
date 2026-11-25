@@ -1,4 +1,9 @@
 spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eka_db
+    username: eka_user
+    password: eka_pass
+
   ai:
     model:
       chat: google-genai
@@ -14,6 +19,20 @@ spring:
           # Avoids Hydrogen's HIGH default latency/token burn.
           # Overrides Hydrogen's 'high' default for faster RAG answers
           thinking-level: LOW
+
+        embedding:
+          # Must be set explicitly: Spring AI 2.0 embedding auto-config does not inherit top-level api-key
+          api-key: ${GEMINI_API_KEY}
+          text:
+            model: gemini-embedding-001
+            task-type: RETRIEVAL_DOCUMENT
+            dimensions: 768
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 768
 logging:
   level:
     org.springframework.ai: DEBUG
