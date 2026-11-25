@@ -1,0 +1,20 @@
+services:
+  pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: eka_pgvector
+    environment:
+      POSTGRES_DB: eka_db
+      POSTGRES_USER: eka_user
+      POSTGRES_PASSWORD: eka_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - eka_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eka_user -d eka_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  eka_pgdata:
